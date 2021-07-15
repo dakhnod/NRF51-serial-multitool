@@ -7,6 +7,7 @@ if [USE_UART](Makefile#L199) is enabled in the Makefile, the adapter provides
 *HM-10*-style characterstics to talk to, which apps like *SpeedyBee* use to speak to flight controllers.
 Also, there is a *Nordic UART Service* with both the RX and TX characteristic, that works in parallel with the HM-10 service.
 Apps like *VESC Tool* use that style to talk to VESC's.
+Currently, only 115200 baud is supported, but this can be changed through code.
 
 ### SPI
 if [USE_SPI](Makefile#L198) is enabled in the Makefile, the adapter can be used to (only) output SPI data.
