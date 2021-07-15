@@ -10,7 +10,8 @@ Apps like *VESC Tool* use that style to talk to VESC's.
 Currently, only 115200 baud is supported, but this can be changed through code.
 
 ### SPI
-if [USE_SPI](Makefile#L198) is enabled in the Makefile, the adapter can be used to (only) output SPI data.
+if [USE_SPI](Makefile#L198) is enabled in the Makefile, the adapter will output SPI simultaniously to UART.
+Averything that is written to one of the UART characteristics will be output through SPI.
 I implemented this to control APA102 LED's on a low level, since the understand the SPI protocol.
 
 ### DFU
