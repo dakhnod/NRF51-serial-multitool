@@ -3,17 +3,17 @@ UART to BLE adapter working with SpeedyBee, VESC and even APA102
 
 ## Protocols
 ### UART
-if *USE_UART* is enabled in the Makefile, the adapter provides
+if [USE_UART](Makefile#L199) is enabled in the Makefile, the adapter provides
 *HM-10*-style characterstics to talk to, which apps like *SpeedyBee* use to speak to flight controllers.
 Also, there is a *Nordic UART Service* with both the RX and TX characteristic, that works in parallel with the HM-10 service.
 Apps like *VESC Tool* use that style to talk to VESC's.
 
 ### SPI
-if *USE_SPI* is enabled in the Makefile, the adapter can be used to (only) output SPI data.
+if [USE_SPI](Makefile#L198) is enabled in the Makefile, the adapter can be used to (only) output SPI data.
 I implemented this to control APA102 LED's on a low level, since the understand the SPI protocol.
 
 ### DFU
-if *USE_DFU* is enabled in the Makefile, the application can be updated using *nRF Connect* on android (and maybe on ios) with the .zip
+if [USE_DFU](Makefile#L197) is enabled in the Makefile, the application can be updated using *nRF Connect* on android (and maybe on ios) with the .zip
 provided in future releases.
 
 ## Hardware
@@ -22,7 +22,7 @@ BLE board I could find.
 It has 256kb flash and 16kb ram.
 Other boards can be used of course, the pins may need adjustments.
 ### Pins
-On the boards I used, the following layout is in place:
+On the boards I used, the [following layout](boards/WT51822_S4AT.h#L25) is in place:
 
 RX   -> P0.1\
 TX   -> P0.2\
