@@ -36,7 +36,7 @@ The board is called "Serial adapter" by default, but can be renamed using *nRF C
 You will need some sort of JLink debugger probe.
 I only tested with SEGGER JLink Edu, a 20€ probe working really well.
 After hooking up your device you'll have to decide on whether you want future updates over the air.
-All the pre-compiled files can be found [here](releases).
+All the pre-compiled files can be found [here](https://github.com/dakhnod/NRF51-serial-multitool/releases).
 ### With DFU updates
 You'll have to install the bootloader first,
 then connected to the device "DfuTarg" and push the zip
