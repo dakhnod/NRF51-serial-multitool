@@ -31,3 +31,28 @@ SCK  -> P0.3\
 MOSI -> P0.4
 
 The board is called "Serial adapter" by default, but can be renamed using *nRF Connect* or any other tool that allows writing the device name characteristic.
+
+## Installation
+You will need some sort of JLink debugger probe.
+I only tested with SEGGER JLink Edu, a 20€ probe working really well.
+After hooking up your device you'll have to decide on whether you want future updates over the air.
+All the pre-compiled files can be found [here](releases).
+### With DFU updates
+You'll have to install the bootloader first,
+then connected to the device "DfuTarg" and push the zip
+application_only.zip.
+```
+nrfjprog --recover
+nrfjprog --program bootloader_with_softdevice.hex --sectorerase
+nrfjprog -r
+```
+After that, you can flash application_only.zip through nRF Connect.
+
+### Without DFU updates
+This is more straightforward since it skips the bootloader.
+Doesn't allow for updates over the air, though.
+```
+nrfjprog --recover
+nrfjprog --program application_with_softdevice.hex --sectorerase
+nrfjprog -r
+```
