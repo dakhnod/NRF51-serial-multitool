@@ -11,8 +11,9 @@ Currently, only 115200 baud is supported, but this can be changed through code.
 
 ### SPI
 if [USE_SPI](Makefile#L198) is enabled in the Makefile, the adapter will output SPI simultaniously to UART.
-Averything that is written to one of the UART characteristics will be output through SPI.
+Everything that is written to one of the UART characteristics will be output through SPI.
 I implemented this to control APA102 LED's on a low level, since the understand the SPI protocol.
+To control the APA's connect SCK to CI and MOSI to DI.
 
 ### DFU
 if [USE_DFU](Makefile#L197) is enabled in the Makefile, the application can be updated using *nRF Connect* on android (and maybe on ios) with the .zip
