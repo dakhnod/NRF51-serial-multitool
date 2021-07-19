@@ -41,11 +41,14 @@ After hooking up your device you'll have to decide on whether you want future up
 All the pre-compiled files can be found [here](https://github.com/dakhnod/NRF51-serial-multitool/releases).
 ### With DFU updates
 You'll have to install the bootloader first,
-then connected to the device "DfuTarg" and push the zip
+then connected to the device "DfuTarg" using NRF Connect and push the zip
 application_only.zip.
+After boot, the bootloader will be connectable for two seconds no matter what,
+so the device remains updatable even if the main application becomes unable to start the bootloader.
+If you want to skip the two seconds sleep, choose bootloader_with_softdevice.hex as bootloader instead.
 ```
 nrfjprog --recover
-nrfjprog --program bootloader_with_softdevice.hex --sectorerase
+nrfjprog --program bootloader_with_softdevice_delay.hex --sectorerase
 nrfjprog -r
 ```
 After that, you can flash application_only.zip through nRF Connect.
