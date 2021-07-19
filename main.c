@@ -12,6 +12,8 @@
 #include "app_uart.h"
 #include "WT51822_S4AT.h"
 #include "nrf_drv_spi.h"
+#include "fds.h"
+#include "math.h"
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -69,6 +71,9 @@ ble_dfu_t dfu;
 static const nrf_drv_spi_t spi_instance = NRF_DRV_SPI_INSTANCE(SPI_INSTANCE);
 #endif
 
+#define FILE_SETTINGS 0x0001
+#define RECORD_NAME   0x0001
+
 APP_TIMER_DEF(uart_send_timer);
 
 /**@brief Function for assert macro callback.
@@ -113,6 +118,11 @@ uint32_t dfu_init ()
 }
 #endif
 
+static void sys_evt_dispatch(uint32_t sys_evt)
+{
+    fs_sys_event_handler(sys_evt);
+}
+
 /**@brief Function for the GAP initialization.
  *
  * @details This function will set up all the necessary GAP (Generic Access Profile) parameters of
@@ -120,7 +130,7 @@ uint32_t dfu_init ()
  */
 static void gap_params_init(void)
 {
-    uint32_t err_code;
+    ret_code_t err_code;
     ble_gap_conn_params_t gap_conn_params = {
         .min_conn_interval = MIN_CONN_INTERVAL,
         .max_conn_interval = MAX_CONN_INTERVAL,
@@ -131,10 +141,44 @@ static void gap_params_init(void)
 
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&sec_mode);
 
-    err_code = sd_ble_gap_device_name_set(&sec_mode,
-                                          (const uint8_t *)DEVICE_NAME,
-                                          strlen(DEVICE_NAME));
-    APP_ERROR_CHECK(err_code);
+    fds_flash_record_t  flash_record;
+    fds_record_desc_t   record_desc;
+    fds_find_token_t    ftok = {0};
+
+    bool read_name_success = false;
+
+    err_code = fds_record_find(FILE_SETTINGS, RECORD_NAME, &record_desc, &ftok);
+
+    if(err_code == FDS_SUCCESS){
+        NRF_LOG_DEBUG("found name record\n");
+        if (fds_record_open(&record_desc, &flash_record) == FDS_SUCCESS){
+            // handle lookup
+            
+            err_code = sd_ble_gap_device_name_set(&sec_mode,
+                                                (const uint8_t *)flash_record.p_data,
+                                                strlen(flash_record.p_data));
+            APP_ERROR_CHECK(err_code);
+
+            read_name_success = true;
+
+            if (fds_record_close(&record_desc) != FDS_SUCCESS){ 
+                NRF_LOG_ERROR("could not close name record\n");
+            }
+        }else{
+            NRF_LOG_ERROR("could not open name record\n");
+        }
+    }else if(err_code == FDS_ERR_NOT_FOUND){
+        NRF_LOG_DEBUG("couldn't find name record\n");
+    }else{
+        NRF_LOG_DEBUG("fds error: %d\n", err_code);
+    }
+
+    if(!read_name_success){
+        err_code = sd_ble_gap_device_name_set(&sec_mode,
+                                            (const uint8_t *)DEVICE_NAME,
+                                            strlen(DEVICE_NAME));
+        APP_ERROR_CHECK(err_code);
+    }
 
     err_code = sd_ble_gap_ppcp_set(&gap_conn_params);
     APP_ERROR_CHECK(err_code);
@@ -191,6 +235,40 @@ static void services_init(void)
     err_code = ble_nus_init(&m_nus, &nus_init);
     APP_ERROR_CHECK(err_code);
     #endif
+}
+
+// Simple event handler to handle errors during initialization.
+void fds_evt_handler(fds_evt_t const * const p_fds_evt)
+{
+    switch (p_fds_evt->id)
+    {
+        case FDS_EVT_INIT:
+            if (p_fds_evt->result == FDS_SUCCESS)
+            {
+                NRF_LOG_DEBUG("fds init success\n");
+            }else{
+                NRF_LOG_ERROR("fds init error: %d\n", p_fds_evt->result);
+            }
+            break;
+        case FDS_EVT_WRITE:
+            if (p_fds_evt->result == FDS_SUCCESS)
+            {
+                NRF_LOG_DEBUG("fds write success\n");
+            }else{
+                NRF_LOG_ERROR("fds write error: %d\n", p_fds_evt->result);
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+void filesystem_init(){
+    ret_code_t err_code = fds_register(fds_evt_handler);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = fds_init();
+    APP_ERROR_CHECK(err_code);
 }
 
 /**@brief Function for handling an event from the Connection Parameters Module.
@@ -263,6 +341,49 @@ advertising_start (uint16_t adv_interval)
   APP_ERROR_CHECK (err_code);
 }
 
+static void on_device_name_write(ble_gatts_evt_write_t *write_evt){
+    #define MAX_NAME_LEN 21
+    static uint8_t __ALIGN(4) name_str[MAX_NAME_LEN] ;
+
+    uint16_t len;
+    ret_code_t err_code;
+    err_code = sd_ble_gap_device_name_get(name_str, &len);
+    APP_ERROR_CHECK(err_code);
+
+    name_str[len] = 0;
+
+    uint16_t word_count = ceil((len + 1)/ 4.0);
+
+    fds_record_desc_t   record_desc;
+    fds_record_chunk_t  record_chunk = {
+        .p_data = name_str,
+        .length_words = word_count
+    };
+    fds_record_t        record = {
+        .file_id = FILE_SETTINGS,
+        .key = RECORD_NAME,
+        .data = {
+            .num_chunks = 1,
+            .p_chunks = &record_chunk
+        }
+    };
+    
+    fds_find_token_t    ftok = {0};
+    err_code = fds_record_find(FILE_SETTINGS, RECORD_NAME, &record_desc, &ftok);
+    if(err_code == FDS_SUCCESS){
+        NRF_LOG_DEBUG("updating existing name record\n");
+        err_code = fds_record_update(&record_desc, &record);
+        APP_ERROR_CHECK(err_code);
+        NRF_LOG_DEBUG("new record id: %d \r\n",record_desc.record_id);
+    }else{
+        NRF_LOG_DEBUG("creating new name record\n");
+        err_code = fds_record_write(&record_desc, &record);
+        APP_ERROR_CHECK(err_code);
+        NRF_LOG_DEBUG("new record id: %d \r\n",record_desc.record_id);
+    }
+    NRF_LOG_DEBUG("name written to fds\n");
+}
+
 /**@brief Function for the application's SoftDevice event handler.
  *
  * @param[in] p_ble_evt SoftDevice event.
@@ -273,6 +394,15 @@ static void on_ble_evt(ble_evt_t *p_ble_evt)
 
     switch (p_ble_evt->header.evt_id)
     {
+    case BLE_GATTS_EVT_WRITE:
+        goto start;
+    start: ;
+        ble_gatts_evt_write_t write_evt = p_ble_evt->evt.gatts_evt.params.write;
+        uint16_t uuid = write_evt.uuid.uuid;
+        if(uuid == 0x2A00){ // device name uuid
+            on_device_name_write(&write_evt);
+        }
+        break;
     case BLE_GAP_EVT_CONNECTED:
         NRF_LOG_DEBUG("connected\n");
         
@@ -417,6 +547,9 @@ static void ble_stack_init(void)
 
     // Subscribe for BLE events.
     err_code = softdevice_ble_evt_handler_set(ble_evt_dispatch);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = softdevice_sys_evt_handler_set(sys_evt_dispatch);
     APP_ERROR_CHECK(err_code);
 }
 
@@ -586,6 +719,8 @@ int main(void)
     #endif
     ble_stack_init();
     NRF_LOG_DEBUG("ble stack inited\n");
+    filesystem_init();
+    NRF_LOG_DEBUG("fds inited\n");
     gap_params_init();
     NRF_LOG_DEBUG("gap inited\n");
     services_init();

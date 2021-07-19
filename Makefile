@@ -61,7 +61,8 @@ SRC_FILES += \
   $(SDK_ROOT)/components/drivers_nrf/hal/nrf_nvmc.c \
   $(SDK_ROOT)/components/libraries/crc32/crc32.c \
   $(SDK_ROOT)/components/ble/ble_services/ble_dfu/ble_dfu.c \
-
+  $(SDK_ROOT)/components/libraries/fds/fds.c \
+  
 # Include folders common to all targets
 INC_FOLDERS += \
   $(SDK_ROOT)/components/drivers_nrf/comp \
