@@ -33,6 +33,7 @@ SCK  -> P0.3\
 MOSI -> P0.4
 
 The board is called "Serial adapter" by default, but can be renamed using *nRF Connect* or any other tool that allows writing the device name characteristic.
+Just write the new name to *Generic Access*->*Device Name* and reboot the chip.
 
 ## Installation
 You will need some sort of JLink debugger probe.
