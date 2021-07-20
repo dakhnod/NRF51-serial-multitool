@@ -40,7 +40,7 @@ I only tested with SEGGER JLink Edu, a 20€ probe working really well.
 After hooking up your device you'll have to decide on whether you want future updates over the air.
 All the pre-compiled files can be found [here](https://github.com/dakhnod/NRF51-serial-multitool/releases).
 ### With DFU updates
-You'll have to install the bootloader first,
+You'll have to install the bootloader from release v1.0 first,
 then connected to the device "DfuTarg" using NRF Connect and push the zip
 application_only.zip.
 After boot, the bootloader will be connectable for two seconds no matter what,
