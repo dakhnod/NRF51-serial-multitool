@@ -5,6 +5,7 @@ APPLICATION_HEX := $(OUTPUT_DIRECTORY)/$(TARGETS).hex
 KEY_FILE := ../../private.pem
 PROJECT_ID := $(shell basename `pwd`)
 OUT_ZIP = $(PROJECT_ID).zip
+SOFTDEVICE_HEX = $(SDK_ROOT)/components/softdevice/s130/hex/s130_nrf51_2.0.1_softdevice.hex
 
 SHELL := /bin/bash
 
@@ -62,7 +63,7 @@ SRC_FILES += \
   $(SDK_ROOT)/components/libraries/crc32/crc32.c \
   $(SDK_ROOT)/components/ble/ble_services/ble_dfu/ble_dfu.c \
   $(SDK_ROOT)/components/libraries/fds/fds.c \
-  
+
 # Include folders common to all targets
 INC_FOLDERS += \
   $(SDK_ROOT)/components/drivers_nrf/comp \
@@ -240,21 +241,27 @@ include $(TEMPLATE_PATH)/Makefile.common
 $(foreach target, $(TARGETS), $(call define_target, $(target)))
 
 # Flash the program
-flash: $(OUTPUT_DIRECTORY)/$(TARGETS).hex
+flash: $(APPLICATION_HEX)
 	@echo Flashing: $<
 	nrfjprog --program $< -f nrf51 --sectorerase
 	nrfjprog --reset -f nrf51
 
 # Flash softdevice
-flash_softdevice:
+flash_softdevice: $(SOFTDEVICE_HEX)
 	@echo Flashing: s130_nrf51_2.0.1_softdevice.hex
-	nrfjprog --program $(SDK_ROOT)/components/softdevice/s130/hex/s130_nrf51_2.0.1_softdevice.hex -f nrf51 --sectorerase 
+	nrfjprog --program $(SOFTDEVICE_HEX) -f nrf51 --sectorerase 
 	nrfjprog --reset -f nrf51
 
 erase:
 	nrfjprog --eraseall -f nrf51
 
-sign: $(OUTPUT_DIRECTORY)/$(TARGETS).hex
+merge_softdevice: $(APPLICATION_HEX) $(SOFTDEVICE_HEX)
+	mergehex -m \
+		$(APPLICATION_HEX) \
+		$(SOFTDEVICE_HEX) \
+	-o application_with_softdevice.hex
+
+sign: $(APPLICATION_HEX)
 	rm -f $(OUT_ZIP)
 	ls -lh $(APPLICATION_HEX)
 	nrfutil pkg generate --application $(APPLICATION_HEX) --debug-mode $(OUT_ZIP) --key-file $(KEY_FILE)
