@@ -60,8 +60,6 @@
 static ble_nus_t m_nus;                                  /**< Structure to identify the Nordic UART Service. */
 static uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID; /**< Handle of the current connection. */
 
-static ble_uuid_t m_adv_uuids[] = {{0xffe0, BLE_UUID_TYPE_BLE}}; /**< Universally unique service identifier. */
-
 #ifdef USE_DFU
 ble_dfu_t dfu;
 #endif
@@ -665,12 +663,17 @@ advertising_init ()
   ble_advdata_t advdata = {
     .name_type = BLE_ADVDATA_FULL_NAME,
     .include_appearance = false,
-    .flags = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE,
+    .flags = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE
   };
+
+  ble_uuid_t m_adv_uuids[] = {
+    {0xffe0, BLE_UUID_TYPE_BLE},
+    {0x0001, BLE_UUID_TYPE_VENDOR_BEGIN + 1},
+  }; /**< Universally unique service identifier. */
 
   // ble_uuid_t adv_uuids[] = {{LBS_UUID_SERVICE, m_lbs.uuid_type}};
   ble_advdata_t scanrsp = {
-    .uuids_complete.uuid_cnt = 1,
+    .uuids_complete.uuid_cnt = 2,
     .uuids_complete.p_uuids  = m_adv_uuids
   };
 
