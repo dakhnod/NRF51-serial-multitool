@@ -18,6 +18,7 @@
 #include "nrf_drv_uart.h"
 #include "nrf_uart.h"
 #include "math.h"
+#include "battery.h"
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -262,6 +263,9 @@ static void services_init(void)
     APP_ERROR_CHECK (err_code);
     #endif
 
+    err_code = ble_bas_init();
+    APP_ERROR_CHECK(err_code);
+
     #if defined(USE_UART) || defined(USE_SPI)
     ble_nus_init_t nus_init = {
         .data_handler = nus_data_handler
@@ -269,6 +273,7 @@ static void services_init(void)
     err_code = ble_nus_init(&m_nus, &nus_init);
     APP_ERROR_CHECK(err_code);
     #endif
+
 }
 
 // Simple event handler to handle errors during initialization.
@@ -543,6 +548,7 @@ static void ble_evt_dispatch(ble_evt_t *p_ble_evt)
 {
     ble_conn_params_on_ble_evt(p_ble_evt);
     ble_nus_on_ble_evt(&m_nus, p_ble_evt);
+    ble_bas_on_ble_evt(p_ble_evt);
     on_ble_evt(p_ble_evt);
     #ifdef USE_DFU
     ble_dfu_on_ble_evt (&dfu, p_ble_evt);
