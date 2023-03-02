@@ -1,19 +1,24 @@
 TARGETS          := nrf51822_xxac
 OUTPUT_DIRECTORY := _build
 
+BLE_ROOT := ../..
+
 APPLICATION_HEX := $(OUTPUT_DIRECTORY)/$(TARGETS).hex
-KEY_FILE := ../../private.pem
+KEY_FILE := $(BLE_ROOT)/private.pem
 PROJECT_ID := $(shell basename `pwd`)
 OUT_ZIP = $(PROJECT_ID).zip
 SOFTDEVICE_HEX = $(SDK_ROOT)/components/softdevice/s130/hex/s130_nrf51_2.0.1_softdevice.hex
 
 SHELL := /bin/bash
 
-SDK_ROOT := ../../nRF5_SDK_12.3.0_d7731ad
+SDK_ROOT := $(BLE_ROOT)/nRF5_SDK_12.3.0_d7731ad
 PROJ_DIR := .
-CUSTOM_INCLUDES_DIR = ../../includes
-ADB_TARGET := 192.168.0.192:5555
+CUSTOM_INCLUDES_DIR = $(BLE_ROOT)/includes
+ADB_TARGET := pixel
 ADB_DIRECTORY := /sdcard/dfu
+
+BOARD := BLE400
+
 
 $(OUTPUT_DIRECTORY)/$(TARGETS).out: \
   LINKER_SCRIPT  := uart_nrf51.ld
@@ -36,16 +41,10 @@ SRC_FILES += \
   $(SDK_ROOT)/components/libraries/util/nrf_assert.c \
   $(SDK_ROOT)/components/libraries/uart/retarget.c \
   $(SDK_ROOT)/components/libraries/util/sdk_errors.c \
-  $(SDK_ROOT)/components/boards/boards.c \
   $(SDK_ROOT)/components/drivers_nrf/clock/nrf_drv_clock.c \
   $(SDK_ROOT)/components/drivers_nrf/common/nrf_drv_common.c \
-  $(SDK_ROOT)/components/drivers_nrf/gpiote/nrf_drv_gpiote.c \
   $(SDK_ROOT)/components/drivers_nrf/uart/nrf_drv_uart.c \
   $(SDK_ROOT)/components/drivers_nrf/spi_master/nrf_drv_spi.c \
-  $(SDK_ROOT)/components/libraries/bsp/bsp.c \
-  $(SDK_ROOT)/components/libraries/bsp/bsp_btn_ble.c \
-  $(SDK_ROOT)/components/libraries/bsp/bsp_nfc.c \
-  $(PROJ_DIR)/main.c \
   $(SDK_ROOT)/external/segger_rtt/RTT_Syscalls_GCC.c \
   $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT.c \
   $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT_printf.c \
@@ -55,14 +54,21 @@ SRC_FILES += \
   $(SDK_ROOT)/components/ble/common/ble_srv_common.c \
   $(SDK_ROOT)/components/toolchain/gcc/gcc_startup_nrf51.S \
   $(SDK_ROOT)/components/toolchain/system_nrf51.c \
-  $(PROJ_DIR)/ble_nus/ble_nus.c \
   $(SDK_ROOT)/components/softdevice/common/softdevice_handler/softdevice_handler.c \
   $(SDK_ROOT)/components/libraries/bootloader/dfu/nrf_dfu_flash.c \
   $(SDK_ROOT)/components/libraries/bootloader/dfu/nrf_dfu_settings.c \
   $(SDK_ROOT)/components/drivers_nrf/hal/nrf_nvmc.c \
   $(SDK_ROOT)/components/libraries/crc32/crc32.c \
-  $(SDK_ROOT)/components/ble/ble_services/ble_dfu/ble_dfu.c \
   $(SDK_ROOT)/components/libraries/fds/fds.c \
+  $(SDK_ROOT)/components/libraries/pwm/app_pwm.c \
+  $(SDK_ROOT)/components/drivers_nrf/ppi/nrf_drv_ppi.c \
+  $(SDK_ROOT)/components/drivers_nrf/timer/nrf_drv_timer.c \
+  $(SDK_ROOT)/components/ble/ble_services/ble_dis/ble_dis.c \
+  $(CUSTOM_INCLUDES_DIR)/services/battery_service/battery.c \
+  $(CUSTOM_INCLUDES_DIR)/services/dfu_service/ble_dfu.c \
+  $(CUSTOM_INCLUDES_DIR)/libraries/gpiote/nrf_drv_gpiote.c \
+  $(PROJ_DIR)/ble_nus/ble_nus.c \
+  $(PROJ_DIR)/main.c \
 
 # Include folders common to all targets
 INC_FOLDERS += \
@@ -84,7 +90,6 @@ INC_FOLDERS += \
   $(SDK_ROOT)/components/libraries/gpiote \
   $(SDK_ROOT)/components/drivers_nrf/gpiote \
   $(SDK_ROOT)/components/libraries/fifo \
-  $(SDK_ROOT)/components/boards \
   $(SDK_ROOT)/components/drivers_nrf/common \
   $(SDK_ROOT)/components/ble/ble_advertising \
   $(SDK_ROOT)/components/drivers_nrf/adc \
@@ -104,7 +109,6 @@ INC_FOLDERS += \
   $(SDK_ROOT)/components/libraries/experimental_section_vars \
   $(SDK_ROOT)/components/ble/ble_services/ble_ans_c \
   $(SDK_ROOT)/components/libraries/slip \
-  $(SDK_ROOT)/components/libraries/mem_manager \
   $(SDK_ROOT)/external/segger_rtt \
   $(SDK_ROOT)/components/libraries/csense_drv \
   $(SDK_ROOT)/components/drivers_nrf/hal \
@@ -142,7 +146,6 @@ INC_FOLDERS += \
   $(SDK_ROOT)/components/drivers_nrf/qdec \
   $(SDK_ROOT)/components/ble/ble_services/ble_cts_c \
   $(SDK_ROOT)/components/drivers_nrf/spi_master \
-  $(PROJ_DIR)/ble_nus \
   $(SDK_ROOT)/components/ble/ble_services/ble_hids \
   $(SDK_ROOT)/components/drivers_nrf/pdm \
   $(SDK_ROOT)/components/libraries/crc32 \
@@ -172,15 +175,19 @@ INC_FOLDERS += \
   $(SDK_ROOT)/components/libraries/bootloader \
   $(SDK_ROOT)/components/drivers_nrf/hal \
   $(SDK_ROOT)/components/libraries/crc32 \
-  $(SDK_ROOT)/components/ble/ble_services/ble_dfu \
-  $(PROJ_DIR) \
-  $(PROJ_DIR)/boards \
+  $(CUSTOM_INCLUDES_DIR)/services/battery_service \
+  $(CUSTOM_INCLUDES_DIR)/boards \
+  $(CUSTOM_INCLUDES_DIR)/services/dfu_service \
+  $(PROJ_DIR)/ \
+  $(PROJ_DIR)/ble_nus/ \
 
 # Libraries common to all targets
 LIB_FILES += \
 
 # C flags common to all targets
-CFLAGS += -DBOARD_WT51822_S4AT
+CFLAGS += -DMAX_INPUT_PIN_COUNT=$(MAX_INPUT_PIN_COUNT)
+CFLAGS += -DMAX_PIN_COUNT=$(MAX_PIN_COUNT)
+CFLAGS += -DBOARD_$(BOARD)
 CFLAGS += -DSOFTDEVICE_PRESENT
 CFLAGS += -DNRF51
 CFLAGS += -DS130
@@ -197,16 +204,20 @@ CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 CFLAGS += -fno-builtin --short-enums 
 CFLAGS += -DNRF_DFU_SETTINGS_VERSION=1
 CFLAGS += -DUSE_DFU
-CFLAGS += -DUSE_SPI
+#CFLAGS += -DUSE_SPI
 CFLAGS += -DUSE_UART
+ifeq ($(BOARD), BLE400)
 CFLAGS += -DDEBUG
+endif
+CFLAGS += -DBUTTON_PIN=BUTTON_0
+CFLAGS += -DFIRMWARE_VERSION=$(FIRMWARE_VERSION)
 
 # C++ flags common to all targets
 CXXFLAGS += \
 
 # Assembler flags common to all targets
 ASMFLAGS += -x assembler-with-cpp
-ASMFLAGS += -DBOARD_WT51822_S4AT
+ASMFLAGS += -DBOARD_$(BOARD)
 ASMFLAGS += -DSOFTDEVICE_PRESENT
 ASMFLAGS += -DNRF51
 ASMFLAGS += -DS130
@@ -224,7 +235,7 @@ LDFLAGS += -Wl,--gc-sections
 LDFLAGS += --specs=nano.specs -lc -lnosys
 
 
-.PHONY: $(TARGETS) default all clean help flash flash_softdevice applicaiton_zip push
+.PHONY: $(TARGETS) default all clean help flash flash_softdevice erase merge_softdevice applicaiton_zip push sign reset config
 
 # Default target - first one defined
 default: $(TARGETS)
@@ -249,7 +260,7 @@ flash: $(APPLICATION_HEX)
 # Flash softdevice
 flash_softdevice: $(SOFTDEVICE_HEX)
 	@echo Flashing: s130_nrf51_2.0.1_softdevice.hex
-	nrfjprog --program $(SOFTDEVICE_HEX) -f nrf51 --sectorerase 
+	nrfjprog --program $(SOFTDEVICE_HEX) -f nrf51
 	nrfjprog --reset -f nrf51
 
 erase:
@@ -266,7 +277,38 @@ sign: $(APPLICATION_HEX)
 	ls -lh $(APPLICATION_HEX)
 	nrfutil pkg generate --application $(APPLICATION_HEX) --debug-mode $(OUT_ZIP) --key-file $(KEY_FILE)
 
-push:
+$(OUT_ZIP): sign
+
+push: $(OUT_ZIP)
 	adb connect $(ADB_TARGET)
 	adb shell mkdir -p $(ADB_DIRECTORY)
 	adb push $(OUT_ZIP) $(ADB_DIRECTORY)
+
+config: src/config/sdk_config.h
+	java -jar ../../CMSIS_Configuration_Wizard.jar src/config/sdk_config.h
+	
+reset:
+	nrfjprog --reset
+
+bin: 
+	rm -f without_crtystal.bin with_crtystal.bin nrf51822_xxac.bin
+	make clean default sign BOARD=BOARD_BEACON_BIG
+	unzip $(PROJECT_ID).zip nrf51822_xxac.bin
+	mv nrf51822_xxac.bin "$(BIN_OUTPUT_FOLDER)$(BIN_OUTPUT_WITHOUT_CRYSTAL)"
+	make clean default sign  BOARD=BOARD_BEACON_SMALL
+	unzip $(PROJECT_ID).zip nrf51822_xxac.bin
+	mv nrf51822_xxac.bin "$(BIN_OUTPUT_FOLDER)$(BIN_OUTPUT_WITH_CRYSTAL)"
+	rm $(PROJECT_ID).zip
+	make clean
+
+rtt_viewer_start:
+	sed -i -r 's/(Frame[XY]) = .*/\1 = 0/' ~/.config/SEGGERJLinkRTTViewerSettings.ini
+	nohup JLinkRTTViewer --autoconnect &
+	sleep 1
+
+rtt_viewer_stop:
+	killall JLinkRTTViewer || true
+	sleep 0.5
+
+python_script_run:
+	test/venv/bin/python test/send.py
