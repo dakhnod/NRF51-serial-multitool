@@ -10,13 +10,18 @@
 #include "app_scheduler.h"
 #include "ble_nus.h"
 #include "app_uart.h"
-#include "WT51822_S4AT.h"
+#include "boards.h"
 #include "nrf_drv_spi.h"
 #include "fds.h"
+#include "nrf_gpio.h"
+#include "nrf_drv_gpiote.h"
+#include "nrf_drv_uart.h"
+#include "nrf_uart.h"
 #include "math.h"
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
+#include "nrf_delay.h"
 
 #ifdef USE_DFU
 #include "fstorage.h"
@@ -41,15 +46,15 @@
 #define APP_TIMER_PRESCALER 0     /**< Value of the RTC1 PRESCALER register. */
 #define APP_TIMER_OP_QUEUE_SIZE 4 /**< Size of timer operation queues. */
 
-#define MIN_CONN_INTERVAL MSEC_TO_UNITS(8, UNIT_1_25_MS)                         /**< Minimum acceptable connection interval (20 ms), Connection interval uses 1.25 ms units. */
-#define MAX_CONN_INTERVAL MSEC_TO_UNITS(15, UNIT_1_25_MS)                         /**< Maximum acceptable connection interval (75 ms), Connection interval uses 1.25 ms units. */
+#define MIN_CONN_INTERVAL MSEC_TO_UNITS(100, UNIT_1_25_MS)                         /**< Minimum acceptable connection interval (20 ms), Connection interval uses 1.25 ms units. */
+#define MAX_CONN_INTERVAL MSEC_TO_UNITS(200, UNIT_1_25_MS)                         /**< Maximum acceptable connection interval (75 ms), Connection interval uses 1.25 ms units. */
 #define SLAVE_LATENCY 0                                                           /**< Slave latency. */
 #define CONN_SUP_TIMEOUT MSEC_TO_UNITS(1000, UNIT_10_MS)                          /**< Connection supervisory timeout (4 seconds), Supervision Timeout uses 10 ms units. */
 #define FIRST_CONN_PARAMS_UPDATE_DELAY APP_TIMER_TICKS(2000, APP_TIMER_PRESCALER) /**< Time from initiating event (connect or start of notification) to first time sd_ble_gap_conn_param_update is called (5 seconds). */
 #define NEXT_CONN_PARAMS_UPDATE_DELAY APP_TIMER_TICKS(5000, APP_TIMER_PRESCALER) /**< Time between each call to sd_ble_gap_conn_param_update after the first call (30 seconds). */
 #define MAX_CONN_PARAMS_UPDATE_COUNT 3                                            /**< Number of attempts before giving up the connection parameter negotiation. */
 
-#define APP_ADV_INTERVAL_FAST           MSEC_TO_UNITS(100, UNIT_0_625_MS)	    /**< The advertising interval (in units of 0.625 ms; this value corresponds to 40 ms). */
+#define APP_ADV_INTERVAL_FAST           MSEC_TO_UNITS(1000, UNIT_0_625_MS)	    /**< The advertising interval (in units of 0.625 ms; this value corresponds to 40 ms). */
 #define APP_ADV_TIMEOUT_IN_SECONDS 0 /**< The advertising timeout (in units of seconds). */
 
 #define DEAD_BEEF 0xDEADBEEF /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
@@ -72,7 +77,38 @@ static const nrf_drv_spi_t spi_instance = NRF_DRV_SPI_INSTANCE(SPI_INSTANCE);
 #define FILE_SETTINGS 0x0001
 #define RECORD_NAME   0x0001
 
+#define TRIGGER_PIN_IN 6
+#define TRIGGER_PIN_OUT 8
+#define TRIGGER_DURATION 10000
+#define TRIGGER_POLARITY_IN 0
+#define TRIGGER_POLARITY_OUT 0
+#define TRIGGER_PULL_IN NRF_GPIO_PIN_NOPULL
+#define TRIGGER_UART_DELAY 500
+
 APP_TIMER_DEF(uart_send_timer);
+
+#ifdef TRIGGER_PIN_IN
+
+#ifndef TRIGGER_DURATION
+#error Please define TRIGGER_DURATION
+#endif
+#ifndef TRIGGER_POLARITY_IN
+#error Please define TRIGGER_POLARITY_IN
+#endif
+#ifndef TRIGGER_POLARITY_OUT
+#error Please define TRIGGER_POLARITY_OUT
+#endif
+
+APP_TIMER_DEF(trigger_timer);
+#endif
+
+bool uart_received_flag = false;
+
+static nrf_drv_uart_t app_uart_inst = NRF_DRV_UART_INSTANCE(APP_UART_DRIVER_INSTANCE);
+bool uart_enabled = true;
+
+void uart_enable_set(bool);
+
 
 /**@brief Function for assert macro callback.
  *
@@ -404,8 +440,8 @@ static void on_ble_evt(ble_evt_t *p_ble_evt)
     case BLE_GAP_EVT_CONNECTED:
         NRF_LOG_DEBUG("connected\n");
         
-        err_code = app_timer_start(uart_send_timer, APP_TIMER_TICKS(5, APP_TIMER_PRESCALER), NULL);
-        APP_ERROR_CHECK(err_code);
+        // err_code = app_timer_start(uart_send_timer, APP_TIMER_TICKS(100, APP_TIMER_PRESCALER), NULL);
+        // APP_ERROR_CHECK(err_code);
 
         m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
         break; // BLE_GAP_EVT_CONNECTED
@@ -414,8 +450,8 @@ static void on_ble_evt(ble_evt_t *p_ble_evt)
         NRF_LOG_DEBUG("disconnected\n");
         m_conn_handle = BLE_CONN_HANDLE_INVALID;
 
-        err_code = app_timer_stop(uart_send_timer);
-        APP_ERROR_CHECK(err_code);
+        // err_code = app_timer_stop(uart_send_timer);
+        // APP_ERROR_CHECK(err_code);
 
         advertising_start(APP_ADV_INTERVAL_FAST);
         break; // BLE_GAP_EVT_DISCONNECTED
@@ -560,11 +596,13 @@ void uart_send_timeout_handler()
     uint8_t data[max_size];
     uint32_t index = 0;
     while(true){
+        NRF_LOG_DEBUG("reading next byte\n");
         uint32_t result = app_uart_get(&current_byte);
         if(result == NRF_ERROR_NOT_FOUND) break;
         data[index++] = current_byte;
         if(index == max_size) break;
     }
+    NRF_LOG_DEBUG("sending %i bytes\n", index);
     if(index > 0){
         err_code = ble_nus_string_send(&m_nus, data, index);
         (void) err_code;
@@ -586,6 +624,10 @@ void uart_event_handle(app_uart_evt_t *p_event)
     switch (p_event->evt_type)
     {
     case APP_UART_DATA_READY:
+
+        app_timer_stop(uart_send_timer);
+        app_timer_start(uart_send_timer, APP_TIMER_TICKS(10, APP_TIMER_PRESCALER), NULL);
+
         break;
 
     case APP_UART_COMMUNICATION_ERROR:
@@ -599,6 +641,7 @@ void uart_event_handle(app_uart_evt_t *p_event)
         break;
 
     default:
+        NRF_LOG_ERROR("what\n");
         break;
     }
 }
@@ -613,8 +656,8 @@ static void uart_init(void)
     uint32_t err_code;
     const app_uart_comm_params_t comm_params =
         {
-            RX_PIN_NUMBER,
-            TX_PIN_NUMBER,
+            7,
+            5,
             RTS_PIN_NUMBER,
             CTS_PIN_NUMBER,
             APP_UART_FLOW_CONTROL_DISABLED,
@@ -628,6 +671,10 @@ static void uart_init(void)
                        APP_IRQ_PRIORITY_MID,
                        err_code);
     APP_ERROR_CHECK(err_code);
+
+    nrf_delay_ms(100);
+
+    // nrf_gpio_cfg_input(RX_PIN_NUMBER, NRF_GPIO_PIN_PULLDOWN);
 }
 #endif
 
@@ -649,6 +696,62 @@ static void spi_init(){
     APP_ERROR_CHECK(err_code);
 }
 #endif
+
+void uart_enable_set(bool enable){
+    if(uart_enabled == enable){
+        return;
+    }
+    NRF_LOG_DEBUG("setting uart to %d\n", enable);
+    UNUSED_PARAMETER(app_uart_inst);
+    if(enable){
+        nrf_drv_uart_rx_enable(&app_uart_inst);
+        nrf_uart_enable(app_uart_inst.reg.p_uart);
+        uart_enabled = true;
+    }else{
+        nrf_drv_uart_rx_disable(&app_uart_inst);
+        nrf_uart_disable(app_uart_inst.reg.p_uart);
+        uart_enabled = false;
+    }
+}
+
+void trigger_timeout_handler(){
+    nrf_gpio_pin_write(TRIGGER_PIN_OUT, !TRIGGER_POLARITY_OUT);
+
+    uart_enable_set(false);
+}
+
+void gpio_trigger_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action){
+    action -= 1;
+    app_timer_stop(trigger_timer);
+    if(action != TRIGGER_POLARITY_IN){
+        uart_enable_set(true);
+        nrf_gpio_pin_write(TRIGGER_PIN_OUT, TRIGGER_POLARITY_OUT);
+    }else{
+        app_timer_start(trigger_timer, APP_TIMER_TICKS(TRIGGER_DURATION, APP_TIMER_PRESCALER), NULL);
+    }
+}
+
+void gpio_init(){
+    ret_code_t err_code;
+
+    err_code = nrf_drv_gpiote_init();
+    APP_ERROR_CHECK(err_code);
+
+    nrf_drv_gpiote_out_config_t out_config = GPIOTE_CONFIG_OUT_SIMPLE(false);
+    err_code = nrf_drv_gpiote_out_init(TRIGGER_PIN_OUT, &out_config);
+    APP_ERROR_CHECK(err_code);
+
+    nrf_gpio_pin_write(TRIGGER_PIN_OUT, !TRIGGER_POLARITY_OUT);
+
+    nrf_drv_gpiote_in_config_t in_config = GPIOTE_CONFIG_IN_SENSE_TOGGLE(false);
+
+    in_config.pull = TRIGGER_PULL_IN;
+
+    err_code = nrf_drv_gpiote_in_init(TRIGGER_PIN_IN, &in_config, gpio_trigger_handler);
+    APP_ERROR_CHECK(err_code);
+
+    nrf_drv_gpiote_in_event_enable(TRIGGER_PIN_IN, true);
+}
 
 /**@brief Function for initializing the Advertising functionality.
  *
@@ -707,9 +810,19 @@ int main(void)
     APP_TIMER_APPSH_INIT(APP_TIMER_PRESCALER, APP_TIMER_OP_QUEUE_SIZE, false);
     err_code = app_timer_create(
         &uart_send_timer,
-        APP_TIMER_MODE_REPEATED,
+        APP_TIMER_MODE_SINGLE_SHOT,
         uart_send_timeout_handler);
     APP_ERROR_CHECK(err_code);
+
+    #ifdef TRIGGER_PIN_IN
+    err_code = app_timer_create(
+        &trigger_timer,
+        APP_TIMER_MODE_SINGLE_SHOT,
+        trigger_timeout_handler);
+    APP_ERROR_CHECK(err_code);
+
+    gpio_init();
+    #endif
 
     NRF_LOG_DEBUG("timer inited\n");
     #ifdef USE_UART
@@ -735,6 +848,10 @@ int main(void)
 
     advertising_start(APP_ADV_INTERVAL_FAST);
     NRF_LOG_DEBUG("advertising started\n");
+
+    #ifdef TRIGGER_PIN_IN
+    uart_enable_set(false);
+    #endif
 
     // Enter main loop.
     for (;;)
