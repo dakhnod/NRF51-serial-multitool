@@ -400,9 +400,9 @@ advertising_start (uint16_t adv_interval)
 
 static void on_device_name_write(ble_gatts_evt_write_t *write_evt){
     #define MAX_NAME_LEN 21
-    static uint8_t __ALIGN(4) name_str[MAX_NAME_LEN] ;
+    static uint8_t __ALIGN(4) name_str[MAX_NAME_LEN];
 
-    uint16_t len;
+    uint16_t len = 20;
     ret_code_t err_code;
     err_code = sd_ble_gap_device_name_get(name_str, &len);
     APP_ERROR_CHECK(err_code);
