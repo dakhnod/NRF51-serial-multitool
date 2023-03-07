@@ -1,9 +1,3 @@
-
-
-#define PM_LOG_ENABLED 1
-#define PM_LOG_LEVEL 4
-
-
 #include <stdint.h>
 #include <string.h>
 #include "nordic_common.h"
