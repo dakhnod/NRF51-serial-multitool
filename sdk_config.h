@@ -41,7 +41,7 @@
  
 
 #ifndef PEER_MANAGER_ENABLED
-#define PEER_MANAGER_ENABLED 0
+#define PEER_MANAGER_ENABLED 1
 #endif
 
 // </h> 

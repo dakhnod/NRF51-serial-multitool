@@ -21,15 +21,28 @@ BOARD := BLE400
 
 
 $(OUTPUT_DIRECTORY)/$(TARGETS).out: \
-  LINKER_SCRIPT  := uart_nrf51.ld
+  LINKER_SCRIPT  := nrf51_qfac.ld
 
 # Source files common to all targets
 SRC_FILES += \
+  $(SDK_ROOT)/components/ble/peer_manager/peer_manager.c \
+  $(SDK_ROOT)/components/ble/peer_manager/peer_data_storage.c \
+  $(SDK_ROOT)/components/ble/peer_manager/peer_database.c \
+  $(SDK_ROOT)/components/ble/peer_manager/security_manager.c \
+  $(SDK_ROOT)/components/ble/peer_manager/security_dispatcher.c \
+  $(SDK_ROOT)/components/ble/peer_manager/id_manager.c \
+  $(SDK_ROOT)/components/ble/peer_manager/gatt_cache_manager.c \
+  $(SDK_ROOT)/components/ble/peer_manager/gatts_cache_manager.c \
+  $(SDK_ROOT)/components/ble/peer_manager/peer_id.c \
+  $(SDK_ROOT)/components/ble/peer_manager/pm_buffer.c \
+  $(SDK_ROOT)/components/ble/peer_manager/pm_mutex.c \
+  $(SDK_ROOT)/components/ble/common/ble_conn_state.c \
   $(SDK_ROOT)/components/libraries/log/src/nrf_log_backend_serial.c \
   $(SDK_ROOT)/components/libraries/log/src/nrf_log_frontend.c \
   $(SDK_ROOT)/components/libraries/button/app_button.c \
   $(SDK_ROOT)/components/libraries/util/app_error.c \
   $(SDK_ROOT)/components/libraries/util/app_error_weak.c \
+  $(SDK_ROOT)/components/libraries/util/sdk_mapped_flags.c \
   $(SDK_ROOT)/components/libraries/scheduler/app_scheduler.c \
   $(SDK_ROOT)/components/libraries/fifo/app_fifo.c \
   $(SDK_ROOT)/components/libraries/timer/app_timer.c \
@@ -197,7 +210,7 @@ CFLAGS += -DNRF51822
 CFLAGS += -DNRF_SD_BLE_API_VERSION=2
 CFLAGS += -mcpu=cortex-m0
 CFLAGS += -mthumb -mabi=aapcs
-CFLAGS +=  -Wall -Werror -O3 -g3
+CFLAGS +=  -Wall -Werror -O0 -g3
 CFLAGS += -mfloat-abi=soft
 # keep every function in separate section, this allows linker to discard unused ones
 CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
