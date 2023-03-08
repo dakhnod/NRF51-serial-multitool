@@ -100,7 +100,7 @@ static void on_write(ble_nus_t * p_nus, ble_evt_t * p_ble_evt)
  *
  * @return NRF_SUCCESS on success, otherwise an error code.
  */
-static uint32_t char_add_hm10(ble_nus_t * p_nus, const ble_nus_init_t * p_nus_init)
+static uint32_t char_add_hm10(ble_nus_t * p_nus, const ble_nus_init_t * p_nus_init, bool secure)
 {
     /**@snippet [Adding proprietary characteristic to S110 SoftDevice] */
     ble_gatts_char_md_t char_md;
@@ -112,7 +112,11 @@ static uint32_t char_add_hm10(ble_nus_t * p_nus, const ble_nus_init_t * p_nus_in
     memset(&cccd_md, 0, sizeof(cccd_md));
 
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&cccd_md.read_perm);
-    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&cccd_md.write_perm);
+    if(secure){
+        BLE_GAP_CONN_SEC_MODE_SET_ENC_WITH_MITM(&cccd_md.write_perm);
+    }else{
+        BLE_GAP_CONN_SEC_MODE_SET_OPEN(&cccd_md.write_perm);
+    }
 
     cccd_md.vloc = BLE_GATTS_VLOC_STACK;
 
@@ -132,8 +136,13 @@ static uint32_t char_add_hm10(ble_nus_t * p_nus, const ble_nus_init_t * p_nus_in
 
     memset(&attr_md, 0, sizeof(attr_md));
 
-    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.read_perm);
-    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.write_perm);
+    if(secure){
+        BLE_GAP_CONN_SEC_MODE_SET_ENC_WITH_MITM(&attr_md.read_perm);
+        BLE_GAP_CONN_SEC_MODE_SET_ENC_WITH_MITM(&attr_md.write_perm);
+    }else{
+        BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.read_perm);
+        BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.write_perm);
+    }
 
     attr_md.vloc    = BLE_GATTS_VLOC_STACK;
     attr_md.rd_auth = 0;
@@ -164,7 +173,7 @@ static uint32_t char_add_hm10(ble_nus_t * p_nus, const ble_nus_init_t * p_nus_in
  *
  * @return NRF_SUCCESS on success, otherwise an error code.
  */
-static uint32_t rx_char_add_nrf()
+static uint32_t rx_char_add_nrf(bool secure)
 {
     /**@snippet [Adding proprietary characteristic to S110 SoftDevice] */
     ble_gatts_char_md_t char_md;
@@ -176,7 +185,11 @@ static uint32_t rx_char_add_nrf()
     memset(&cccd_md, 0, sizeof(cccd_md));
 
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&cccd_md.read_perm);
-    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&cccd_md.write_perm);
+    if(secure){
+        BLE_GAP_CONN_SEC_MODE_SET_ENC_WITH_MITM(&cccd_md.write_perm);
+    }else{
+        BLE_GAP_CONN_SEC_MODE_SET_OPEN(&cccd_md.write_perm);
+    }
 
     cccd_md.vloc = BLE_GATTS_VLOC_STACK;
 
@@ -194,8 +207,13 @@ static uint32_t rx_char_add_nrf()
 
     memset(&attr_md, 0, sizeof(attr_md));
 
-    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.read_perm);
-    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.write_perm);
+    if(secure){
+        BLE_GAP_CONN_SEC_MODE_SET_ENC_WITH_MITM(&attr_md.read_perm);
+        BLE_GAP_CONN_SEC_MODE_SET_ENC_WITH_MITM(&attr_md.write_perm);
+    }else{
+        BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.read_perm);
+        BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.write_perm);
+    }
 
     attr_md.vloc    = BLE_GATTS_VLOC_STACK;
     attr_md.rd_auth = 0;
@@ -226,7 +244,7 @@ static uint32_t rx_char_add_nrf()
  * @return NRF_SUCCESS on success, otherwise an error code.
  */
 
-static uint32_t tx_char_add_nrf()
+static uint32_t tx_char_add_nrf(bool secure)
 {
     ble_gatts_char_md_t char_md;
     ble_gatts_attr_t    attr_char_value;
@@ -248,8 +266,13 @@ static uint32_t tx_char_add_nrf()
 
     memset(&attr_md, 0, sizeof(attr_md));
 
-    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.read_perm);
-    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.write_perm);
+    if(secure){
+        BLE_GAP_CONN_SEC_MODE_SET_ENC_WITH_MITM(&attr_md.read_perm);
+        BLE_GAP_CONN_SEC_MODE_SET_ENC_WITH_MITM(&attr_md.write_perm);
+    }else{
+        BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.read_perm);
+        BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.write_perm);
+    }
 
     attr_md.vloc    = BLE_GATTS_VLOC_STACK;
     attr_md.rd_auth = 0;
@@ -300,7 +323,7 @@ void ble_nus_on_ble_evt(ble_nus_t * p_nus, ble_evt_t * p_ble_evt)
 }
 
 
-uint32_t ble_nus_init(ble_nus_t * p_nus, const ble_nus_init_t * p_nus_init)
+uint32_t ble_nus_init(ble_nus_t * p_nus, const ble_nus_init_t * p_nus_init, bool secure)
 {
     uint32_t      err_code;
     ble_uuid_t    ble_uuid;
@@ -327,7 +350,7 @@ uint32_t ble_nus_init(ble_nus_t * p_nus, const ble_nus_init_t * p_nus_init)
     VERIFY_SUCCESS(err_code);
 
     // Add the HM10 Characteristic.
-    err_code = char_add_hm10(p_nus, p_nus_init);
+    err_code = char_add_hm10(p_nus, p_nus_init, secure);
     VERIFY_SUCCESS(err_code);
 
     // Add the TX Characteristic.
@@ -362,10 +385,10 @@ uint32_t ble_nus_init(ble_nus_t * p_nus, const ble_nus_init_t * p_nus_init)
     /**@snippet [Adding proprietary Service to S110 SoftDevice] */
     VERIFY_SUCCESS(err_code);
 
-    err_code = rx_char_add_nrf();
+    err_code = rx_char_add_nrf(secure);
     VERIFY_SUCCESS(err_code);
-    (void)tx_char_add_nrf;
-    err_code = tx_char_add_nrf();
+
+    err_code = tx_char_add_nrf(secure);
     VERIFY_SUCCESS(err_code);
 
     return NRF_SUCCESS;

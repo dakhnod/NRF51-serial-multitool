@@ -21,10 +21,16 @@
 #include "battery.h"
 #include "ble_advertising.h"
 #include "peer_manager.h"
+#include "ble_conn_state.h"
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_delay.h"
+
+#if BLE_SECURE == 1
+#include "secrets.h"
+ble_opt_t passkey_opt;
+#endif
 
 #ifdef USE_DFU
 #include "fstorage.h"
@@ -83,7 +89,7 @@ static const nrf_drv_spi_t spi_instance = NRF_DRV_SPI_INSTANCE(SPI_INSTANCE);
 
 #define TRIGGER_PIN_IN 6
 #define TRIGGER_PIN_OUT 8
-#define TRIGGER_DURATION 10000
+#define TRIGGER_DURATION 4200
 #define TRIGGER_POLARITY_IN 0
 #define TRIGGER_POLARITY_OUT 0
 #define TRIGGER_PULL_IN NRF_GPIO_PIN_NOPULL
@@ -299,7 +305,7 @@ static void services_init(void)
 #if defined(USE_UART) || defined(USE_SPI)
     ble_nus_init_t nus_init = {
         .data_handler = nus_data_handler};
-    err_code = ble_nus_init(&m_nus, &nus_init);
+    err_code = ble_nus_init(&m_nus, &nus_init, BLE_SECURE == 1);
     APP_ERROR_CHECK(err_code);
 #endif
 }
@@ -575,6 +581,7 @@ static void on_ble_evt(ble_evt_t *p_ble_evt)
  */
 static void ble_evt_dispatch(ble_evt_t *p_ble_evt)
 {
+    ble_conn_state_on_ble_evt(p_ble_evt);
     pm_on_ble_evt(p_ble_evt);
     ble_conn_params_on_ble_evt(p_ble_evt);
     ble_nus_on_ble_evt(&m_nus, p_ble_evt);
@@ -987,7 +994,7 @@ void peer_manager_init()
     ble_gap_sec_params_t sec_param = {
         .bond = 1,
         .mitm = 1,
-        .lesc = 1,
+        .lesc = 0,
         .io_caps = BLE_GAP_IO_CAPS_DISPLAY_ONLY,
         .min_key_size = 7,
         .max_key_size = 16,
@@ -1049,8 +1056,13 @@ int main(void)
     NRF_LOG_DEBUG("fds inited\n");
     gap_params_init();
     NRF_LOG_DEBUG("gap inited\n");
+    #if BLE_SECURE == 1
     peer_manager_init();
     NRF_LOG_DEBUG("peer manager inited\n");
+    passkey_opt.gap_opt.passkey.p_passkey = (uint8_t*) PASSKEY;
+    err_code = sd_ble_opt_set(BLE_GAP_OPT_PASSKEY, &passkey_opt);
+    APP_ERROR_CHECK(err_code);
+    #endif
     services_init();
     NRF_LOG_DEBUG("services inited\n");
     advertising_init();
