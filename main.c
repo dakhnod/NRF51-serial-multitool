@@ -57,7 +57,7 @@ ble_opt_t passkey_opt;
 #define MIN_CONN_INTERVAL MSEC_TO_UNITS(100, UNIT_1_25_MS)                        /**< Minimum acceptable connection interval (20 ms), Connection interval uses 1.25 ms units. */
 #define MAX_CONN_INTERVAL MSEC_TO_UNITS(200, UNIT_1_25_MS)                        /**< Maximum acceptable connection interval (75 ms), Connection interval uses 1.25 ms units. */
 #define SLAVE_LATENCY 0                                                           /**< Slave latency. */
-#define CONN_SUP_TIMEOUT MSEC_TO_UNITS(1000, UNIT_10_MS)                          /**< Connection supervisory timeout (4 seconds), Supervision Timeout uses 10 ms units. */
+#define CONN_SUP_TIMEOUT MSEC_TO_UNITS(6000, UNIT_10_MS)                          /**< Connection supervisory timeout (4 seconds), Supervision Timeout uses 10 ms units. */
 #define FIRST_CONN_PARAMS_UPDATE_DELAY APP_TIMER_TICKS(2000, APP_TIMER_PRESCALER) /**< Time from initiating event (connect or start of notification) to first time sd_ble_gap_conn_param_update is called (5 seconds). */
 #define NEXT_CONN_PARAMS_UPDATE_DELAY APP_TIMER_TICKS(5000, APP_TIMER_PRESCALER)  /**< Time between each call to sd_ble_gap_conn_param_update after the first call (30 seconds). */
 #define MAX_CONN_PARAMS_UPDATE_COUNT 3                                            /**< Number of attempts before giving up the connection parameter negotiation. */
@@ -87,8 +87,8 @@ static const nrf_drv_spi_t spi_instance = NRF_DRV_SPI_INSTANCE(SPI_INSTANCE);
 #define FILE_SETTINGS 0x0001
 #define RECORD_NAME 0x0001
 
-#define TRIGGER_PIN_IN 6
-#define TRIGGER_PIN_OUT 8
+#define TRIGGER_PIN_IN 2
+#define TRIGGER_PIN_OUT 1
 #define TRIGGER_DURATION 4200
 #define TRIGGER_POLARITY_IN 0
 #define TRIGGER_POLARITY_OUT 0
@@ -704,8 +704,8 @@ static void uart_init(void)
     uint32_t err_code;
     const app_uart_comm_params_t comm_params =
         {
-            7,
-            5,
+            RX_PIN_NUMBER,
+            TX_PIN_NUMBER,
             RTS_PIN_NUMBER,
             CTS_PIN_NUMBER,
             APP_UART_FLOW_CONTROL_DISABLED,
@@ -767,13 +767,13 @@ void uart_enable_set(bool enable)
     }
 }
 
+#ifdef TRIGGER_PIN_IN
 void trigger_timeout_handler()
 {
     nrf_gpio_pin_write(TRIGGER_PIN_OUT, !TRIGGER_POLARITY_OUT);
 
     uart_enable_set(false);
 }
-
 void gpio_trigger_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
     action -= 1;
@@ -811,6 +811,7 @@ void gpio_init()
 
     nrf_drv_gpiote_in_event_enable(TRIGGER_PIN_IN, true);
 }
+#endif
 
 void advertising_event_handler(ble_adv_evt_t event)
 {
